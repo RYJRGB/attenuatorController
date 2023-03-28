@@ -22,7 +22,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+#include "ht16k33_7seg.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -98,12 +98,37 @@ int main(void)
   MX_USB_PCD_Init();
   /* USER CODE BEGIN 2 */
 
+  // Turn on the oscillator of the HT16K33
+  ht16k33_write_cmd(HT16K33_CMD_OSCILLATOR_ON);
+
+  // Turn on display and set brightness
+  ht16k33_write_cmd(HT16K33_CMD_DISPLAY_ON | HT16K33_DISPLAY_BRIGHTNESS_MAX);
+
+  // Set display to show all digits
+  ht16k33_write_display_buffer((uint16_t[]) {0, 0, 0, 0});
+
+
+
+
+
+  int num = -127; // Set the initial number to display
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  // Display the number
+	       ht16k33_display_int(num);
+
+	          // Increment the number
+	          num++;
+	          if (num > 127) {
+	              num = -127;
+	          }
+
+	          // Delay for some time
+	          HAL_Delay(1000);
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -172,7 +197,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.ClockSpeed = 100000;
+  hi2c1.Init.ClockSpeed = 400000;
   hi2c1.Init.DutyCycle = I2C_DUTYCYCLE_2;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
