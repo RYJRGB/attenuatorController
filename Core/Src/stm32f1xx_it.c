@@ -213,7 +213,26 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
   /* USER CODE END USB_LP_CAN1_RX0_IRQn 1 */
 }
 
+/**
+  * @brief This function handles EXTI line[9:5] interrupts.
+  */
+void EXTI9_5_IRQHandler(void)
+{
+  /* USER CODE BEGIN EXTI9_5_IRQn 0 */
+	if(__HAL_GPIO_EXTI_GET_FLAG(GPIO_PIN_5) || __HAL_GPIO_EXTI_GET_FLAG(GPIO_PIN_6)) {
+	        rotary_encoder_update();
+	        // clear the interrupt flag
+	        __HAL_GPIO_EXTI_CLEAR_FLAG(GPIO_PIN_5);
+	        __HAL_GPIO_EXTI_CLEAR_FLAG(GPIO_PIN_6);
+	    }
+  /* USER CODE END EXTI9_5_IRQn 0 */
+
+
+  /* USER CODE BEGIN EXTI9_5_IRQn 1 */
+
+  /* USER CODE END EXTI9_5_IRQn 1 */
+}
+
 /* USER CODE BEGIN 1 */
 
 /* USER CODE END 1 */
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/

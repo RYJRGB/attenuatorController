@@ -25,6 +25,7 @@
 /* USER CODE BEGIN Includes */
 #include "usbd_cdc_if.h"
 //#include "ht16k33_7seg.h"
+#include "ht16k33.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -38,6 +39,7 @@
 #define HV_EN_PIN GPIO_PIN_7
 #define LED_PORT GPIOA
 #define LED_PIN GPIO_PIN_8
+const uint8_t MAX_BRIGHT = 15;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -49,7 +51,13 @@
 I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
+#define ROTARY_MIN_VALUE 0
+#define ROTARY_MAX_VALUE 127
 
+#define DEBOUNCE_DELAY 104 // debounce delay in ms
+
+volatile int rotary_value = 69;
+volatile uint32_t last_debounce_time = 0; // in ms, from HAL_GetTick()
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -57,12 +65,15 @@ void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 /* USER CODE BEGIN PFP */
-
+void convertToUint8Array(int8_t value, uint8_t array[4]);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 uint8_t *data = "Hello World from USB CDC\n";
+
+int8_t i = -127;
+int ht16k33inrange = 0;
 /* USER CODE END 0 */
 
 /**
@@ -72,6 +83,7 @@ uint8_t *data = "Hello World from USB CDC\n";
 int main(void)
 {
   /* USER CODE BEGIN 1 */
+
 
   /* USER CODE END 1 */
 
@@ -97,23 +109,26 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
-  // Turn on the oscillator of the HT16K33
-  //ht16k33_write_cmd(HT16K33_CMD_OSCILLATOR_ON);
-
-  // Turn on display and set brightness
-  //ht16k33_write_cmd(HT16K33_CMD_DISPLAY_ON | HT16K33_DISPLAY_BRIGHTNESS_MAX);
-
-  // Set display to show all digits
-  //ht16k33_write_display_buffer((uint16_t[]) {0, 0, 0, 0});
-
-
+//  // Turn on the oscillator of the HT16K33
+//  ht16k33_write_cmd(HT16K33_CMD_OSCILLATOR_ON);
+//
+//  // Turn on display and set brightness
+//  ht16k33_write_cmd(HT16K33_CMD_DISPLAY_ON | HT16K33_DISPLAY_BRIGHTNESS_MAX);
+//
+//  // Set display to show all digits
+//  ht16k33_write_display_buffer((uint16_t[]) {0, 0, 0, 0});
 
 
+  	seg7_init(); //initialize display
+  	seg7_setBrightness(5);		// 0 .. 15	  0 = off, 15 = max. brightness
+  	HAL_Delay(100);
+  	seg7_displayOn();	// enable display
 
-  //int num = -127; // Set the initial number to display
+
+
   //uint8_t buffer[] = "Hello, World!";
-  //CDC_Transmit_FS(buffer, sizeof(buffer));
- // strcpy((char*)buffer, "Hello, Loop!");
+
+  //strcpy((char*)buffer, "Hello, Loop!\n");
   //HAL_GPIO_WritePin(HV_EN_PORT, HV_EN_PIN, GPIO_PIN_SET);
   /* USER CODE END 2 */
 
@@ -121,22 +136,17 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  // Display the number
-	   //    ht16k33_display_int(num);
-	       //CDC_Transmit_FS(buffer, sizeof(buffer));
+	  int i = 0;
+	  seg7_displayAtt(rotary_value);
 
-	          // Increment the number
-	   //       num++;
-	     //     if (num > 127) {
-	         //     num = -127;
-	       //   }
-
-	          // Delay for some time
-
-
-	       CDC_Transmit_FS(data, strlen(data));
-	       HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
-	       HAL_Delay(1000);
+//	  void seg7_display(uint8_t *array);
+	  //CDC_Transmit_FS(buffer, strlen(buffer));
+	  //HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
+	  uint8_t buffer[20];
+	  sprintf(buffer, "integer: %d", i);
+	  CDC_Transmit_FS(buffer, sizeof(buffer));
+	  HAL_Delay(250);
+	  i++;
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -168,6 +178,7 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
+
   /** Initializes the CPU, AHB and APB buses clocks
   */
   RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
@@ -246,9 +257,6 @@ static void MX_GPIO_Init(void)
                           |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7
                           |GPIO_PIN_8, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_5|GPIO_PIN_6, GPIO_PIN_RESET);
-
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_OD;
@@ -277,14 +285,110 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : PB5 PB6 */
   GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI9_5_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI9_5_IRQn);
 
 }
 
 /* USER CODE BEGIN 4 */
+
+void rotary_encoder_update() {
+	HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
+    static uint8_t last_state = 0;
+
+    uint8_t a_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5);
+    uint8_t b_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6);
+    uint8_t current_state = (a_state << 1) | b_state;
+
+    // if state is changed, update the last_debounce_time
+    if(current_state != last_state) {
+        last_debounce_time = HAL_GetTick();
+    }
+
+    // if more than DEBOUNCE_DELAY ms have passed, process the state
+    if((HAL_GetTick() - last_debounce_time) > DEBOUNCE_DELAY) {
+        // look at the changes from the last state to the current state
+        if(last_state == 0b00) {
+            // last_state = 0b00
+            if(current_state == 0b01) rotary_value++;
+            if(current_state == 0b10) rotary_value--;
+        } else if(last_state == 0b01) {
+            // last_state = 0b01
+            if(current_state == 0b11) rotary_value++;
+            if(current_state == 0b00) rotary_value--;
+        } else if(last_state == 0b10) {
+            // last_state = 0b10
+            if(current_state == 0b00) rotary_value++;
+            if(current_state == 0b11) rotary_value--;
+        } else {
+            // last_state = 0b11
+            if(current_state == 0b10) rotary_value++;
+            if(current_state == 0b01) rotary_value--;
+        }
+
+        // clamp the rotary_value to ROTARY_MIN_VALUE and ROTARY_MAX_VALUE
+        if(rotary_value > ROTARY_MAX_VALUE) rotary_value = ROTARY_MAX_VALUE;
+        if(rotary_value < ROTARY_MIN_VALUE) rotary_value = ROTARY_MIN_VALUE;
+    }
+
+    // update the last_state
+    last_state = current_state;
+}
+
+//void rotary_encoder_update() {
+//    static uint8_t last_state = 0;
+//
+//    uint8_t a_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5);
+//    uint8_t b_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6);
+//    uint8_t current_state = (a_state << 1) | b_state;
+//
+//    // look at the changes from the last state to the current state
+//    if(last_state == 0b00) {
+//        // last_state = 0b00
+//        if(current_state == 0b01) rotary_value++;
+//        if(current_state == 0b10) rotary_value--;
+//    } else if(last_state == 0b01) {
+//        // last_state = 0b01
+//        if(current_state == 0b11) rotary_value++;
+//        if(current_state == 0b00) rotary_value--;
+//    } else if(last_state == 0b10) {
+//        // last_state = 0b10
+//        if(current_state == 0b00) rotary_value++;
+//        if(current_state == 0b11) rotary_value--;
+//    } else {
+//        // last_state = 0b11
+//        if(current_state == 0b10) rotary_value++;
+//        if(current_state == 0b01) rotary_value--;
+//    }
+//
+//    // clamp the rotary_value to ROTARY_MIN_VALUE and ROTARY_MAX_VALUE
+//    if(rotary_value > ROTARY_MAX_VALUE) rotary_value = ROTARY_MAX_VALUE;
+//    if(rotary_value < ROTARY_MIN_VALUE) rotary_value = ROTARY_MIN_VALUE;
+//
+//    // update the last_state
+//    last_state = current_state;
+//}
+
+void convertToUint8Array(int8_t value, uint8_t array[4])
+{
+    // Check if the value is negative
+    if (value < 0) {
+        array[0] = 17;  // Set the minus sign representation
+        value *= -1;  // Convert the value to positive
+    } else {
+        array[0] = 0;  // Set the plus sign representation
+    }
+
+    // Convert the absolute value to a 4-element array
+    array[3] = (uint8_t)(value % 10);
+    array[2] = (uint8_t)((value / 10) % 10);
+    array[1] = (uint8_t)((value / 100) % 10);
+}
 
 /* USER CODE END 4 */
 
@@ -319,5 +423,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
