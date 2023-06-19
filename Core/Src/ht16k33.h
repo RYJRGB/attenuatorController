@@ -63,4 +63,6 @@ void seg7_displayPoint(uint8_t *array, uint8_t point);  // displays 4 displayabl
 void seg7_displayColon(uint8_t on);                 	// 0 = off
 void seg7_displayRaw(uint8_t *array, int colon);  		// control the 4 Characters and the colon
 
+int seg7_displayAtt(int n);
+
 #endif /* INC_HT16K33_H_ */

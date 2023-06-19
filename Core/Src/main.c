@@ -35,6 +35,9 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
+
+
+
 #define HV_EN_PORT GPIOA
 #define HV_EN_PIN GPIO_PIN_7
 #define LED_PORT GPIOA
@@ -51,13 +54,11 @@ const uint8_t MAX_BRIGHT = 15;
 I2C_HandleTypeDef hi2c1;
 
 /* USER CODE BEGIN PV */
-#define ROTARY_MIN_VALUE 0
-#define ROTARY_MAX_VALUE 127
 
-#define DEBOUNCE_DELAY 104 // debounce delay in ms
+volatile int rotary_value = 0;
 
-volatile int rotary_value = 69;
-volatile uint32_t last_debounce_time = 0; // in ms, from HAL_GetTick()
+
+
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -137,7 +138,8 @@ int main(void)
   while (1)
   {
 	  int i = 0;
-	  seg7_displayAtt(rotary_value);
+	  int attenuationValue = rotary_value/2;
+	  seg7_displayAtt(rotary_value/2);
 
 //	  void seg7_display(uint8_t *array);
 	  //CDC_Transmit_FS(buffer, strlen(buffer));
@@ -285,7 +287,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : PB5 PB6 */
   GPIO_InitStruct.Pin = GPIO_PIN_5|GPIO_PIN_6;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
   GPIO_InitStruct.Pull = GPIO_PULLUP;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
@@ -297,82 +299,52 @@ static void MX_GPIO_Init(void)
 
 /* USER CODE BEGIN 4 */
 
-void rotary_encoder_update() {
-	HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
-    static uint8_t last_state = 0;
-
-    uint8_t a_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5);
-    uint8_t b_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6);
-    uint8_t current_state = (a_state << 1) | b_state;
-
-    // if state is changed, update the last_debounce_time
-    if(current_state != last_state) {
-        last_debounce_time = HAL_GetTick();
-    }
-
-    // if more than DEBOUNCE_DELAY ms have passed, process the state
-    if((HAL_GetTick() - last_debounce_time) > DEBOUNCE_DELAY) {
-        // look at the changes from the last state to the current state
-        if(last_state == 0b00) {
-            // last_state = 0b00
-            if(current_state == 0b01) rotary_value++;
-            if(current_state == 0b10) rotary_value--;
-        } else if(last_state == 0b01) {
-            // last_state = 0b01
-            if(current_state == 0b11) rotary_value++;
-            if(current_state == 0b00) rotary_value--;
-        } else if(last_state == 0b10) {
-            // last_state = 0b10
-            if(current_state == 0b00) rotary_value++;
-            if(current_state == 0b11) rotary_value--;
-        } else {
-            // last_state = 0b11
-            if(current_state == 0b10) rotary_value++;
-            if(current_state == 0b01) rotary_value--;
-        }
-
-        // clamp the rotary_value to ROTARY_MIN_VALUE and ROTARY_MAX_VALUE
-        if(rotary_value > ROTARY_MAX_VALUE) rotary_value = ROTARY_MAX_VALUE;
-        if(rotary_value < ROTARY_MIN_VALUE) rotary_value = ROTARY_MIN_VALUE;
-    }
-
-    // update the last_state
-    last_state = current_state;
-}
-
 //void rotary_encoder_update() {
+//	HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
 //    static uint8_t last_state = 0;
 //
 //    uint8_t a_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5);
 //    uint8_t b_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6);
 //    uint8_t current_state = (a_state << 1) | b_state;
 //
-//    // look at the changes from the last state to the current state
-//    if(last_state == 0b00) {
-//        // last_state = 0b00
-//        if(current_state == 0b01) rotary_value++;
-//        if(current_state == 0b10) rotary_value--;
-//    } else if(last_state == 0b01) {
-//        // last_state = 0b01
-//        if(current_state == 0b11) rotary_value++;
-//        if(current_state == 0b00) rotary_value--;
-//    } else if(last_state == 0b10) {
-//        // last_state = 0b10
-//        if(current_state == 0b00) rotary_value++;
-//        if(current_state == 0b11) rotary_value--;
-//    } else {
-//        // last_state = 0b11
-//        if(current_state == 0b10) rotary_value++;
-//        if(current_state == 0b01) rotary_value--;
+//    // if state is changed, update the last_debounce_time
+//    if(current_state != last_state) {
+//        last_debounce_time = HAL_GetTick();
 //    }
 //
-//    // clamp the rotary_value to ROTARY_MIN_VALUE and ROTARY_MAX_VALUE
-//    if(rotary_value > ROTARY_MAX_VALUE) rotary_value = ROTARY_MAX_VALUE;
-//    if(rotary_value < ROTARY_MIN_VALUE) rotary_value = ROTARY_MIN_VALUE;
+//    // if more than DEBOUNCE_DELAY ms have passed, process the state
+//    if((HAL_GetTick() - last_debounce_time) > DEBOUNCE_DELAY) {
+//        // look at the changes from the last state to the current state
+//        if(last_state == 0b00) {
+//            // last_state = 0b00
+//            if(current_state == 0b01) rotary_value++;
+//            if(current_state == 0b10) rotary_value--;
+//        } else if(last_state == 0b01) {
+//            // last_state = 0b01
+//            if(current_state == 0b11) rotary_value++;
+//            if(current_state == 0b00) rotary_value--;
+//        } else if(last_state == 0b10) {
+//            // last_state = 0b10
+//            if(current_state == 0b00) rotary_value++;
+//            if(current_state == 0b11) rotary_value--;
+//        } else {
+//            // last_state = 0b11
+//            if(current_state == 0b10) rotary_value++;
+//            if(current_state == 0b01) rotary_value--;
+//        }
+//
+//        // clamp the rotary_value to ROTARY_MIN_VALUE and ROTARY_MAX_VALUE
+//        if(rotary_value > ROTARY_MAX_VALUE) rotary_value = ROTARY_MAX_VALUE;
+//        if(rotary_value < ROTARY_MIN_VALUE) rotary_value = ROTARY_MIN_VALUE;
+//    }
 //
 //    // update the last_state
 //    last_state = current_state;
 //}
+
+
+
+
 
 void convertToUint8Array(int8_t value, uint8_t array[4])
 {

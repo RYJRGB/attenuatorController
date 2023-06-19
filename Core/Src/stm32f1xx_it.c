@@ -32,7 +32,10 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+#define DEBOUNCE_DELAY 1 // Debounce delay in milliseconds
+#define ROTARY_MAX_VALUE 254
+#define ROTARY_MIN_VALUE 0
+extern volatile int rotary_value;
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -219,15 +222,42 @@ void USB_LP_CAN1_RX0_IRQHandler(void)
 void EXTI9_5_IRQHandler(void)
 {
   /* USER CODE BEGIN EXTI9_5_IRQn 0 */
-	if(__HAL_GPIO_EXTI_GET_FLAG(GPIO_PIN_5) || __HAL_GPIO_EXTI_GET_FLAG(GPIO_PIN_6)) {
-	        rotary_encoder_update();
-	        // clear the interrupt flag
-	        __HAL_GPIO_EXTI_CLEAR_FLAG(GPIO_PIN_5);
-	        __HAL_GPIO_EXTI_CLEAR_FLAG(GPIO_PIN_6);
-	    }
+	static uint32_t last_debounce_time = 0;
+	static uint8_t last_state = 0;
+
+	// Read the current state of the rotary encoder
+	uint8_t a_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_5);
+	uint8_t b_state = HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_6);
+	uint8_t current_state = (a_state << 1) | b_state;
+
+	// Check if the current state is different from the last state and enough time has passed for debounce
+	if ((current_state != last_state) && ((HAL_GetTick() - last_debounce_time) > DEBOUNCE_DELAY)) {
+		if(last_state == 0b00) {
+			if(current_state == 0b01) rotary_value--;
+			if(current_state == 0b10) rotary_value++;
+		} else if(last_state == 0b01) {
+			if(current_state == 0b11) rotary_value--;
+			if(current_state == 0b00) rotary_value++;
+		} else if(last_state == 0b10) {
+			if(current_state == 0b00) rotary_value--;
+			if(current_state == 0b11) rotary_value++;
+		} else { // last_state == 0b11
+			if(current_state == 0b10) rotary_value--;
+			if(current_state == 0b01) rotary_value++;
+		}
+
+		// Clamp the rotary_value to ROTARY_MIN_VALUE and ROTARY_MAX_VALUE
+		if(rotary_value > ROTARY_MAX_VALUE) rotary_value = ROTARY_MAX_VALUE;
+		if(rotary_value < ROTARY_MIN_VALUE) rotary_value = ROTARY_MIN_VALUE;
+
+		// Update the last state and debounce time
+		last_state = current_state;
+		last_debounce_time = HAL_GetTick();
+	}
+
   /* USER CODE END EXTI9_5_IRQn 0 */
-
-
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_5);
+  HAL_GPIO_EXTI_IRQHandler(GPIO_PIN_6);
   /* USER CODE BEGIN EXTI9_5_IRQn 1 */
 
   /* USER CODE END EXTI9_5_IRQn 1 */
