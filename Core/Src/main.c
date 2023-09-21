@@ -37,11 +37,22 @@
 /* USER CODE BEGIN PD */
 
 
+#define NUM_GPIO_PINS			7
 
-#define HV_EN_PORT GPIOA
-#define HV_EN_PIN GPIO_PIN_7
-#define LED_PORT GPIOA
-#define LED_PIN GPIO_PIN_8
+#define HV_EN_PORT 				GPIOA
+#define HV_EN_PIN 				GPIO_PIN_7
+#define LED_PORT 				GPIOA
+#define LED_PIN 				GPIO_PIN_8
+
+#define RELAY_PORT				GPIOA
+#define REL1 					GPIO_PIN_0
+#define REL2 					GPIO_PIN_1
+#define REL4 					GPIO_PIN_2
+#define REL8 					GPIO_PIN_3
+#define REL16 					GPIO_PIN_4
+#define REL32 					GPIO_PIN_10
+#define REL64 					GPIO_PIN_9
+
 const uint8_t MAX_BRIGHT = 15;
 /* USER CODE END PD */
 
@@ -124,6 +135,7 @@ int main(void)
   	seg7_setBrightness(5);		// 0 .. 15	  0 = off, 15 = max. brightness
   	HAL_Delay(100);
   	seg7_displayOn();	// enable display
+  	HAL_GPIO_WritePin(HV_EN_PORT, HV_EN_PIN, SET); // turn on 12V boost.
 
 
 
@@ -138,7 +150,7 @@ int main(void)
   while (1)
   {
 	  int i = 0;
-	  int attenuationValue = rotary_value/2;
+	  uint8_t attenuationValue = rotary_value/2;
 	  seg7_displayAtt(rotary_value/2);
 
 //	  void seg7_display(uint8_t *array);
@@ -147,6 +159,7 @@ int main(void)
 	  uint8_t buffer[20];
 	  sprintf(buffer, "integer: %d", i);
 	  CDC_Transmit_FS(buffer, sizeof(buffer));
+	  setAttenuator(attenuationValue);
 	  HAL_Delay(250);
 	  i++;
     /* USER CODE END WHILE */
@@ -277,10 +290,10 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PB2 PB10 PB11 PB13
-                           PB14 */
-  GPIO_InitStruct.Pin = GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_11|GPIO_PIN_13
-                          |GPIO_PIN_14;
+  /*Configure GPIO pins : PB0 PB2 PB10 PB11
+                           PB13 PB14 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_11
+                          |GPIO_PIN_13|GPIO_PIN_14;
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
@@ -343,7 +356,84 @@ static void MX_GPIO_Init(void)
 //}
 
 
+void setAttenuator(uint8_t decimal) {
+    if (decimal > 127) {
+        //printf("Input out of range (0-127).\n");
+        return;
+    }
 
+    int binary[NUM_GPIO_PINS] = {0};
+
+    for (int i = NUM_GPIO_PINS - 1; i >= 0; --i) {
+        binary[i] = decimal % 2;
+        decimal = decimal / 2;
+    }
+
+    // Update GPIO states to reflect binary representation
+    for (int i = 0; i < NUM_GPIO_PINS; ++i) {
+    	switch(i) {
+    	        case 0:
+    	            if(binary[i] == 1){
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL1, SET);
+    	            }
+    	            else{
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL1, RESET);
+    	            }
+    	            break;
+    	        case 1:
+    	            if(binary[i] == 1){
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL2, SET);
+    	            }
+    	            else{
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL2, RESET);
+    	            }
+    	            break;
+    	        case 2:
+    	            if(binary[i] == 1){
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL4, SET);
+    	            }
+    	            else{
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL4, RESET);
+    	            }
+    	            break;
+    	        case 3:
+    	            if(binary[i] == 1){
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL8, SET);
+    	            }
+    	            else{
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL8, RESET);
+    	            }
+    	            break;
+    	        case 4:
+    	            if(binary[i] == 1){
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL16, SET);
+    	            }
+    	            else{
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL16, RESET);
+    	            }
+    	            break;
+    	        case 5:
+    	            if(binary[i] == 1){
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL32, SET);
+    	            }
+    	            else{
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL32, RESET);
+    	            }
+    	            break;
+    	        case 6:
+    	            if(binary[i] == 1){
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL64, SET);
+    	            }
+    	            else{
+    	            	HAL_GPIO_WritePin(RELAY_PORT, REL64, RESET);
+    	            }
+    	            break;
+    	        default:
+
+    	            break;
+    	}
+    }
+}
 
 
 void convertToUint8Array(int8_t value, uint8_t array[4])
