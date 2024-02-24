@@ -1,0 +1,3 @@
+Record=TopLevelDocument|FileName=MCUboard.SchDoc|SheetNumber=1
+Record=SheetSymbol|SourceDocument=MCUboard.SchDoc|Designator=U_RELAY_DRIVER|SchDesignator=U_RELAY_DRIVER|FileName=RELAY_DRIVER.SchDoc|SheetNumber=3|SymbolType=Normal|RawFileName=RELAY_DRIVER.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
+Record=SheetSymbol|SourceDocument=MCUboard.SchDoc|Designator=USB_PWR_CLK|SchDesignator=USB_PWR_CLK|FileName=USB_PWR_CLK.SchDoc|SheetNumber=2|SymbolType=Normal|RawFileName=USB_PWR_CLK.SchDoc|DesignItemId= |SourceLibraryName= |ObjectKind=Sheet Symbol|RevisionGUID= |ItemGUID= |VaultGUID= 
