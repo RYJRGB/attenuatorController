@@ -23,7 +23,9 @@
 #include "usbd_cdc_if.h"
 
 /* USER CODE BEGIN INCLUDE */
-
+#define COMMAND_BUFFER_SIZE 64
+char commandBuffer[COMMAND_BUFFER_SIZE];
+uint32_t bufferIndex = 0;
 /* USER CODE END INCLUDE */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -33,6 +35,8 @@
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
 uint8_t buffer[7];
+
+uint32_t attenuation = 0;  // Global attenuation variable
 /* USER CODE END PV */
 
 /** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
@@ -273,9 +277,42 @@ static int8_t CDC_Control_FS(uint8_t cmd, uint8_t* pbuf, uint16_t length)
 static int8_t CDC_Receive_FS(uint8_t* Buf, uint32_t *Len)
 {
   /* USER CODE BEGIN 6 */
-  USBD_CDC_SetRxBuffer(&hUsbDeviceFS, &Buf[0]);
-  USBD_CDC_ReceivePacket(&hUsbDeviceFS);
-  return (USBD_OK);
+    // Process each received character
+    for (uint32_t i = 0; i < *Len; ++i) {
+        // Echo the received character back to the host
+        CDC_Transmit_FS(&Buf[i], 1);
+
+        // Add the character to the command buffer if not end of command
+        if (bufferIndex < COMMAND_BUFFER_SIZE - 1) {
+            commandBuffer[bufferIndex++] = Buf[i];
+        }
+
+        // Check if the received character is the end of a command
+        if (Buf[i] == '\n' || Buf[i] == '\r') {
+            // Null-terminate the string
+            commandBuffer[bufferIndex] = '\0';
+
+            // Debug: Print the received command
+            char debugMessage[80];
+            snprintf(debugMessage, sizeof(debugMessage), ">> Received: %s\r\n", commandBuffer);
+            CDC_Transmit_FS((uint8_t *)debugMessage, strlen(debugMessage));
+
+            // Process the command
+            if (strncmp(commandBuffer, "-a ", 3) == 0) {
+                handle_attenuation(commandBuffer + 3);
+            } else {
+                handle_invalid_command();
+            }
+
+            // Reset the buffer index for the next command
+            bufferIndex = 0;
+        }
+    }
+
+    // Re-arm the reception of the next packet
+    USBD_CDC_SetRxBuffer(&hUsbDeviceFS, UserRxBufferFS);
+    USBD_CDC_ReceivePacket(&hUsbDeviceFS);
+    return (USBD_OK);
   /* USER CODE END 6 */
 }
 
@@ -294,18 +331,32 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
 {
   uint8_t result = USBD_OK;
   /* USER CODE BEGIN 7 */
+
   USBD_CDC_HandleTypeDef *hcdc = (USBD_CDC_HandleTypeDef*)hUsbDeviceFS.pClassData;
-  if (hcdc->TxState != 0){
-    return USBD_BUSY;
+  if (hcdc->TxState != 0) {
+      return USBD_BUSY;
   }
   USBD_CDC_SetTxBuffer(&hUsbDeviceFS, Buf, Len);
   result = USBD_CDC_TransmitPacket(&hUsbDeviceFS);
+
   /* USER CODE END 7 */
   return result;
 }
 
 /* USER CODE BEGIN PRIVATE_FUNCTIONS_IMPLEMENTATION */
+void handle_attenuation(char *args) {
+    uint32_t value = (uint32_t)atoi(args);
+    attenuation = value;
+    char response[64];
+    snprintf(response, sizeof(response), ">> Attenuation set to %lu\r\n", attenuation);
+    CDC_Transmit_FS((uint8_t *)response, strlen(response));
+}
 
+void handle_invalid_command() {
+    char response[64];
+    snprintf(response, sizeof(response), ">> Invalid command\r\n");
+    CDC_Transmit_FS((uint8_t *)response, strlen(response));
+}
 /* USER CODE END PRIVATE_FUNCTIONS_IMPLEMENTATION */
 
 /**

@@ -45,13 +45,13 @@
 #define LED_PIN 				GPIO_PIN_8
 
 #define RELAY_PORT				GPIOA
-#define REL1 					GPIO_PIN_0
-#define REL2 					GPIO_PIN_1
-#define REL4 					GPIO_PIN_2
+#define REL1 					GPIO_PIN_9
+#define REL2 					GPIO_PIN_10
+#define REL4 					GPIO_PIN_4
 #define REL8 					GPIO_PIN_3
-#define REL16 					GPIO_PIN_4
-#define REL32 					GPIO_PIN_10
-#define REL64 					GPIO_PIN_9
+#define REL16 					GPIO_PIN_2
+#define REL32 					GPIO_PIN_1
+#define REL64 					GPIO_PIN_0
 
 const uint8_t MAX_BRIGHT = 15;
 /* USER CODE END PD */
@@ -121,47 +121,37 @@ int main(void)
   MX_USB_DEVICE_Init();
   /* USER CODE BEGIN 2 */
 
-//  // Turn on the oscillator of the HT16K33
-//  ht16k33_write_cmd(HT16K33_CMD_OSCILLATOR_ON);
-//
-//  // Turn on display and set brightness
-//  ht16k33_write_cmd(HT16K33_CMD_DISPLAY_ON | HT16K33_DISPLAY_BRIGHTNESS_MAX);
-//
-//  // Set display to show all digits
-//  ht16k33_write_display_buffer((uint16_t[]) {0, 0, 0, 0});
 
 
-  	seg7_init(); //initialize display
-  	seg7_setBrightness(5);		// 0 .. 15	  0 = off, 15 = max. brightness
-  	HAL_Delay(100);
-  	seg7_displayOn();	// enable display
-  	HAL_GPIO_WritePin(HV_EN_PORT, HV_EN_PIN, SET); // turn on 12V boost.
+  seg7_init(); //initialize display
+  seg7_setBrightness(5);		// 0 .. 15	  0 = off, 15 = max. brightness
+  HAL_Delay(10);
+  seg7_displayOn();	// enable display
+  HAL_GPIO_WritePin(HV_EN_PORT, HV_EN_PIN, SET); // turn on 12V boost.
+
+
+  uint8_t buffer[20];
+  sprintf(buffer, "Attenuator V1");
+  CDC_Transmit_FS(buffer, sizeof(buffer));
 
 
 
-  //uint8_t buffer[] = "Hello, World!";
-
-  //strcpy((char*)buffer, "Hello, Loop!\n");
-  //HAL_GPIO_WritePin(HV_EN_PORT, HV_EN_PIN, GPIO_PIN_SET);
   /* USER CODE END 2 */
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-	  int i = 0;
-	  uint8_t attenuationValue = rotary_value/2;
-	  seg7_displayAtt(rotary_value/2);
 
-//	  void seg7_display(uint8_t *array);
-	  //CDC_Transmit_FS(buffer, strlen(buffer));
-	  //HAL_GPIO_TogglePin(LED_PORT, LED_PIN);
-	  uint8_t buffer[20];
-	  sprintf(buffer, "integer: %d", i);
-	  CDC_Transmit_FS(buffer, sizeof(buffer));
+	  uint8_t attenuationValue = rotary_value/2;
+	  seg7_displayAtt(attenuationValue);
+
+
+
+
 	  setAttenuator(attenuationValue);
 	  HAL_Delay(250);
-	  i++;
+
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -270,7 +260,7 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
                           |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7
-                          |GPIO_PIN_8, GPIO_PIN_RESET);
+                          |GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -281,10 +271,10 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pins : PA0 PA1 PA2 PA3
                            PA4 PA5 PA6 PA7
-                           PA8 */
+                           PA8 PA9 PA10 */
   GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
                           |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7
-                          |GPIO_PIN_8;
+                          |GPIO_PIN_8|GPIO_PIN_9|GPIO_PIN_10;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
